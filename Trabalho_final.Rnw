@@ -1,0 +1,48 @@
+\documentclass{article}
+
+\title{Dados orçamentários dos estados na Matriz de Saldos Contábeis (MSC)}
+\author{Gabriel Junqueira}
+\date{Junho de 2021}
+
+\begin{document}
+
+\maketitle
+
+\textbf{}
+
+<<echo=F, warning=F, message=F>>=
+library(tidyverse)
+library(httr)
+library(jsonlite)
+library(knitr)
+
+@
+
+
+<<results='asis', echo=F, warning=F, message=F>>=
+entes <- GET ("http://apidatalake.tesouro.gov.br/ords/siconfi/tt/entes?")
+entes_txt <- content(entes, as="text", encoding="UTF-8")
+entes_json <- fromJSON(entes_txt, flatten = FALSE) 
+entes_bd <- as_tibble(entes_json[["items"]]) 
+estados <- entes_bd %>% 
+  filter(esfera=="E" | esfera=="D") %>% 
+  select(-capital, -uf, - esfera, -cnpj) %>% 
+  arrange(desc(populacao)) %>% 
+  mutate(pop_perc = populacao / sum(populacao), pop_acum = cumsum(pop_perc), posicao = min_rank(desc(pop_perc)))
+remove(entes, entes_txt,entes_json)
+estados %>%
+  slice(1:10) %>%
+  kable()
+  
+@
+
+<<fig.cap="Titulo de Figura", fig.height=4, fig.width=4, echo=F, warning=F, message=F>>=
+estados %>% 
+  mutate(ente = fct_reorder(ente, populacao)) %>% 
+  ggplot(aes(populacao, ente)) +
+    geom_col()
+@
+
+
+
+\end{document}
